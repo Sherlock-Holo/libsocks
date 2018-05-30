@@ -1,10 +1,10 @@
 package libsocks
 
 import (
-    "net"
+    "encoding/binary"
     "errors"
     "fmt"
-    "encoding/binary"
+    "net"
 )
 
 const (
@@ -23,7 +23,7 @@ var (
 )
 
 type Socks struct {
-    net.Conn
+    *net.TCPConn
     *Auth
 
     AddrType   uint8
@@ -38,7 +38,7 @@ func NewSocks(conn net.Conn, auth *Auth) Socks {
     }
 
     return Socks{
-        conn,
+        conn.(*net.TCPConn),
         auth,
         0,
         nil,
