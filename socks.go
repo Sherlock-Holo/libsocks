@@ -32,6 +32,21 @@ type Socks struct {
     TargetPort uint16
 }
 
+func NewSocks(conn net.Conn, auth *Auth) Socks {
+    if auth == nil {
+        auth = &NoAuth
+    }
+
+    return Socks{
+        conn,
+        auth,
+        0,
+        nil,
+        "",
+        0,
+    }
+}
+
 func (socks *Socks) Init() error {
     if socks.Auth == nil {
         socks.Auth = &NoAuth
