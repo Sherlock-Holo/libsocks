@@ -125,7 +125,7 @@ func (socks *Socks) Init() error {
 
     if request[1] != 1 {
         reply := []byte{5, CmdNotSupport, 0}
-        tcpAddr := socks.Conn.(*net.TCPConn).LocalAddr().(*net.TCPAddr)
+        tcpAddr := socks.LocalAddr().(*net.TCPAddr)
 
         if len(tcpAddr.IP) == net.IPv6len {
             reply = append(reply, 4)
@@ -210,7 +210,7 @@ func (socks *Socks) Init() error {
 
     default:
         reply := []byte{5, AddrTypeNotSupport, 0}
-        tcpAddr := socks.Conn.(*net.TCPConn).LocalAddr().(*net.TCPAddr)
+        tcpAddr := socks.LocalAddr().(*net.TCPAddr)
 
         if len(tcpAddr.IP) == net.IPv6len {
             reply = append(reply, 4)
