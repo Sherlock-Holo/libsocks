@@ -4,6 +4,7 @@ import (
     "encoding/binary"
     "errors"
     "fmt"
+    "log"
     "net"
 )
 
@@ -92,18 +93,23 @@ func (socks *Socks) Init() error {
     }
     if !coincide {
         socks.Close()
-        return fmt.Errorf("auth %d not coincide", socks.Code)
+        err := fmt.Errorf("auth %d not coincide", socks.Code)
+        log.Println(err)
+        return err
     }
 
     ok, err := socks.AuthFunc(socks)
     if err != nil {
         socks.Close()
+        log.Println(err)
         return err
     }
 
     if !ok {
         socks.Close()
-        return errors.New("auth failed")
+        err := errors.New("auth failed")
+        log.Println(err)
+        return err
     }
 
     request := make([]byte, 4)
@@ -113,6 +119,7 @@ func (socks *Socks) Init() error {
         n, err := socks.Read(request[length:])
         if err != nil {
             socks.Close()
+            log.Println(err)
             return err
         }
         length += n
@@ -120,6 +127,7 @@ func (socks *Socks) Init() error {
 
     if request[0] != 5 {
         socks.Close()
+        log.Println(err)
         return VersionErr
     }
 
@@ -141,9 +149,11 @@ func (socks *Socks) Init() error {
         _, err = socks.Write(reply)
         if err != nil {
             socks.Close()
+            log.Println(err)
             return err
         }
         socks.Close()
+        log.Println("cmd not support")
         return errors.New("cmd not support")
     }
 
@@ -158,6 +168,7 @@ func (socks *Socks) Init() error {
             n, err := socks.Read(addr[length:])
             if err != nil {
                 socks.Close()
+                log.Println(err)
                 return err
             }
             length += n
@@ -175,6 +186,7 @@ func (socks *Socks) Init() error {
             n, err := socks.Read(addr[length:])
             if err != nil {
                 socks.Close()
+                log.Println(err)
                 return err
             }
             length += n
@@ -189,6 +201,7 @@ func (socks *Socks) Init() error {
         _, err := socks.Read(addrLength)
         if err != nil {
             socks.Close()
+            log.Println(err)
             return err
         }
 
@@ -199,6 +212,7 @@ func (socks *Socks) Init() error {
             n, err := socks.Read(addr[length:])
             if err != nil {
                 socks.Close()
+                log.Println(err)
                 return err
             }
             length += n
@@ -226,22 +240,26 @@ func (socks *Socks) Init() error {
         _, err = socks.Write(reply)
         if err != nil {
             socks.Close()
+            log.Println(err)
             return err
         }
         socks.Close()
+        log.Println("addr type not support")
         return errors.New("addr type not support")
     }
 }
 
 func (socks *Socks) Reply(ip net.IP, port uint16, field uint8) error {
     if field > 8 {
-        return fmt.Errorf("not support reply filed %d", field)
+        err := fmt.Errorf("not support reply filed %d", field)
+        log.Println(err)
+        return err
     }
 
     pb := make([]byte, 2)
     binary.BigEndian.PutUint16(pb, port)
 
-    reply := []byte{5, field}
+    reply := []byte{5, field, 0}
     if len(ip) == 4 {
         reply = append(reply, 1)
     } else {
@@ -251,6 +269,10 @@ func (socks *Socks) Reply(ip net.IP, port uint16, field uint8) error {
     reply = append(reply, pb...)
 
     _, err := socks.Write(reply)
+
+    if err != nil {
+        log.Println(err)
+    }
 
     return err
 }
