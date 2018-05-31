@@ -27,10 +27,7 @@ type Socks struct {
     *net.TCPConn
     *Auth
 
-    AddrType   uint8
-    TargetIP   net.IP
-    TargetHost string
-    TargetPort uint16
+    Target Address
 }
 
 func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
@@ -41,10 +38,7 @@ func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
     socks := Socks{
         conn.(*net.TCPConn),
         auth,
-        0,
-        nil,
-        "",
-        0,
+        Address{},
     }
 
     err := socks.init()
@@ -164,7 +158,7 @@ func (socks *Socks) init() error {
         return errors.New("cmd not support")
     }
 
-    socks.AddrType = request[3]
+    socks.Target.Type = request[3]
 
     switch request[3] {
     case 1:
@@ -181,8 +175,8 @@ func (socks *Socks) init() error {
             length += n
         }
 
-        socks.TargetIP = net.IP(addr[:4])
-        socks.TargetPort = binary.BigEndian.Uint16(addr[4:])
+        socks.Target.IP = net.IP(addr[:4])
+        socks.Target.Port = binary.BigEndian.Uint16(addr[4:])
         return nil
 
     case 4:
@@ -199,8 +193,8 @@ func (socks *Socks) init() error {
             length += n
         }
 
-        socks.TargetIP = net.IP(addr[:16])
-        socks.TargetPort = binary.BigEndian.Uint16(addr[16:])
+        socks.Target.IP = net.IP(addr[:16])
+        socks.Target.Port = binary.BigEndian.Uint16(addr[16:])
         return nil
 
     case 3:
@@ -225,8 +219,8 @@ func (socks *Socks) init() error {
             length += n
         }
 
-        socks.TargetHost = string(addr[:addrLength[0]])
-        socks.TargetPort = binary.BigEndian.Uint16(addr[addrLength[0]:])
+        socks.Target.Host = string(addr[:addrLength[0]])
+        socks.Target.Port = binary.BigEndian.Uint16(addr[addrLength[0]:])
         return nil
 
     default:

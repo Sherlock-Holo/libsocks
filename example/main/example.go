@@ -33,18 +33,18 @@ func Handle(conn net.Conn) {
 
     var addr string
 
-    switch socks.AddrType {
+    switch socks.Target.Type {
     case 1:
-        addr = socks.TargetIP.String() + ":"
+        addr = socks.Target.IP.String() + ":"
 
     case 3:
-        addr = socks.TargetHost + ":"
+        addr = socks.Target.Host + ":"
 
     case 4:
-        addr = "[" + socks.TargetIP.String() + "]:"
+        addr = "[" + socks.Target.IP.String() + "]:"
     }
 
-    remote, err := net.Dial("tcp", fmt.Sprintf("%s%d", addr, socks.TargetPort))
+    remote, err := net.Dial("tcp", fmt.Sprintf("%s%d", addr, socks.Target.Port))
     if err != nil {
         log.Println(err)
         socks.Reply(net.IP{127, 0, 0, 1}, 0, libsocks.ConnRefused)
