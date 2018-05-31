@@ -26,12 +26,9 @@ func main() {
 }
 
 func Handle(conn net.Conn) {
-    socks := libsocks.NewSocks(conn, nil)
-    err := socks.Init()
+    socks, err := libsocks.NewSocks(conn, nil)
     if err != nil {
-        log.Println(err)
-        socks.Close()
-        return
+        log.Fatal(err)
     }
 
     var addr string

@@ -33,12 +33,12 @@ type Socks struct {
     TargetPort uint16
 }
 
-func NewSocks(conn net.Conn, auth *Auth) Socks {
+func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
     if auth == nil {
         auth = &NoAuth
     }
 
-    return Socks{
+    socks := Socks{
         conn.(*net.TCPConn),
         auth,
         0,
@@ -46,9 +46,16 @@ func NewSocks(conn net.Conn, auth *Auth) Socks {
         "",
         0,
     }
+
+    err := socks.init()
+    if err != nil {
+        log.Println(err)
+        return Socks{}, err
+    }
+    return socks, nil
 }
 
-func (socks *Socks) Init() error {
+func (socks *Socks) init() error {
     if socks.Auth == nil {
         socks.Auth = &NoAuth
     }
