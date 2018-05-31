@@ -2,6 +2,7 @@ package libsocks
 
 import (
     "encoding/binary"
+    "errors"
     "net"
 )
 
@@ -28,4 +29,49 @@ func (address Address) Bytes() []byte {
 
     bytes = append(bytes, pb...)
     return bytes
+}
+
+func Decode(b []byte) (Address, error) {
+    if b == nil {
+        return Address{}, errors.New("empty []byte")
+    }
+
+    if len(b) <= 1+1+2 {
+        return Address{}, errors.New("not enough bytes")
+    }
+
+    var address Address
+
+    switch b[0] {
+    case 1:
+        if len(b) < 1+4+2 {
+            return Address{}, errors.New("not enough bytes")
+        }
+
+        address.IP = b[1:5]
+        b = b[5:]
+
+    case 4:
+        if len(b) < 1+16+2 {
+            return Address{}, errors.New("not enough bytes")
+        }
+
+        address.IP = b[1:17]
+        b = b[17:]
+
+    case 3:
+        length := int(b[1])
+        if len(b) < 2+length+2 {
+            return Address{}, errors.New("not enough bytes")
+        }
+        address.Host = string(b[2 : 2+length])
+        b = b[2+length:]
+
+    default:
+        return Address{}, errors.New("address type not support")
+    }
+
+    address.Port = binary.BigEndian.Uint16(b)
+
+    return address, nil
 }
