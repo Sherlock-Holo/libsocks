@@ -4,6 +4,7 @@ import (
     "encoding/binary"
     "errors"
     "fmt"
+    "io"
     "log"
     "net"
 )
@@ -54,17 +55,12 @@ func (socks *Socks) init() error {
         socks.Auth = &NoAuth
     }
 
-    var length int
-
     verMsg := make([]byte, 2)
 
-    for length < 2 {
-        n, err := socks.Read(verMsg[length:])
-        if err != nil {
-            socks.Close()
-            return err
-        }
-        length += n
+    _, err := io.ReadFull(socks, verMsg)
+    if err != nil {
+        socks.Close()
+        return err
     }
 
     if verMsg[0] != 5 {
@@ -73,15 +69,11 @@ func (socks *Socks) init() error {
     }
 
     methods := make([]byte, verMsg[1])
-    length = 0
 
-    for length < int(verMsg[1]) {
-        n, err := socks.Read(methods[length:])
-        if err != nil {
-            socks.Close()
-            return err
-        }
-        length += n
+    _, err = io.ReadFull(socks, methods)
+    if err != nil {
+        socks.Close()
+        return err
     }
 
     var coincide bool
@@ -95,40 +87,29 @@ func (socks *Socks) init() error {
     if !coincide {
         socks.Close()
         err := fmt.Errorf("auth %d not coincide", socks.Code)
-        log.Println(err)
         return err
     }
 
     ok, err := socks.AuthFunc(socks)
     if err != nil {
         socks.Close()
-        log.Println(err)
         return err
     }
 
     if !ok {
         socks.Close()
         err := errors.New("auth failed")
-        log.Println(err)
         return err
     }
 
     request := make([]byte, 4)
-    length = 0
 
-    for length < 4 {
-        n, err := socks.Read(request[length:])
-        if err != nil {
-            socks.Close()
-            log.Println(err)
-            return err
-        }
-        length += n
+    if _, err := io.ReadFull(socks, request); err != nil {
+        return err
     }
 
     if request[0] != 5 {
         socks.Close()
-        log.Println(err)
         return VersionErr
     }
 
@@ -163,16 +144,9 @@ func (socks *Socks) init() error {
     switch request[3] {
     case 1:
         addr := make([]byte, 6)
-        length = 0
 
-        for length < 6 {
-            n, err := socks.Read(addr[length:])
-            if err != nil {
-                socks.Close()
-                log.Println(err)
-                return err
-            }
-            length += n
+        if _, err := io.ReadFull(socks, addr); err != nil {
+            return err
         }
 
         socks.Target.IP = net.IP(addr[:4])
@@ -181,16 +155,9 @@ func (socks *Socks) init() error {
 
     case 4:
         addr := make([]byte, net.IPv6len+2)
-        length = 0
 
-        for length < net.IPv6len+2 {
-            n, err := socks.Read(addr[length:])
-            if err != nil {
-                socks.Close()
-                log.Println(err)
-                return err
-            }
-            length += n
+        if _, err := io.ReadFull(socks, addr); err != nil {
+            return err
         }
 
         socks.Target.IP = net.IP(addr[:16])
@@ -207,16 +174,9 @@ func (socks *Socks) init() error {
         }
 
         addr := make([]byte, addrLength[0]+2)
-        length = 0
 
-        for length < int(addrLength[0])+2 {
-            n, err := socks.Read(addr[length:])
-            if err != nil {
-                socks.Close()
-                log.Println(err)
-                return err
-            }
-            length += n
+        if _, err := io.ReadFull(socks, addr); err != nil {
+            return err
         }
 
         socks.Target.Host = string(addr[:addrLength[0]])
