@@ -3,6 +3,8 @@ package libsocks
 import (
     "encoding/binary"
     "errors"
+    "fmt"
+    "io"
     "net"
 )
 
@@ -16,15 +18,18 @@ type Address struct {
 func (address Address) Bytes() []byte {
     pb := make([]byte, 2)
     binary.BigEndian.PutUint16(pb, address.Port)
-    var bytes []byte
+    bytes := []byte{address.Type}
 
     switch address.Type {
     case 1, 4:
         bytes = append(bytes, address.IP...)
 
-    default:
+    case 3:
         bytes = append(bytes, byte(len([]byte(address.Host))))
         bytes = append(bytes, []byte(address.Host)...)
+
+    default:
+        panic(fmt.Sprintf("error addr type %d", address.Type))
     }
 
     bytes = append(bytes, pb...)
@@ -41,8 +46,9 @@ func Decode(b []byte) (Address, error) {
     }
 
     var address Address
+    address.Type = b[0]
 
-    switch b[0] {
+    switch address.Type {
     case 1:
         if len(b) < 1+4+2 {
             return Address{}, errors.New("not enough bytes")
@@ -74,4 +80,61 @@ func Decode(b []byte) (Address, error) {
     address.Port = binary.BigEndian.Uint16(b)
 
     return address, nil
+}
+
+func DecodeFrom(r io.Reader) (Address, error) {
+    atyp := make([]byte, 1)
+    if _, err := r.Read(atyp); err != nil {
+        return Address{}, err
+    }
+
+    var (
+        b []byte
+    )
+
+    switch atyp[0] {
+    case 1:
+        b = make([]byte, net.IPv4len+2)
+        if _, err := io.ReadFull(r, b); err != nil {
+            return Address{}, err
+        }
+        b = append(atyp, b...)
+
+    case 4:
+        b = make([]byte, net.IPv6len+2)
+        if _, err := io.ReadFull(r, b); err != nil {
+            return Address{}, err
+        }
+        b = append(atyp, b...)
+
+    case 3:
+        addrLen := make([]byte, 1)
+        if _, err := r.Read(addrLen); err != nil {
+            return Address{}, err
+        }
+        b = make([]byte, addrLen[0]+2)
+        if _, err := io.ReadFull(r, b); err != nil {
+            return Address{}, err
+        }
+        b = append(addrLen, b...)
+        b = append(atyp, b...)
+
+    default:
+        return Address{}, fmt.Errorf("not support addr type %d", atyp[0])
+    }
+
+    return Decode(b)
+}
+
+func (address Address) String() string {
+    switch address.Type {
+    case 1:
+        return fmt.Sprintf("%s:%d", address.IP.String(), address.Port)
+    case 4:
+        return fmt.Sprintf("[%s]:%d", address.IP.String(), address.Port)
+    case 3:
+        return fmt.Sprintf("%s:%d", address.Host, address.Port)
+    default:
+        return ""
+    }
 }
