@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 )
 
@@ -20,9 +19,13 @@ const (
 	AddrTypeNotSupport
 )
 
-var (
-	VersionErr = errors.New("socks version not support")
-)
+type VersionErr struct {
+	SocksVersion int
+}
+
+func (e VersionErr) Error() string {
+	return fmt.Sprintf("socks version %d not support", e.SocksVersion)
+}
 
 type Socks struct {
 	*net.TCPConn
@@ -44,17 +47,12 @@ func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
 
 	err := socks.init()
 	if err != nil {
-		log.Println(err)
 		return Socks{}, err
 	}
 	return socks, nil
 }
 
 func (socks *Socks) init() error {
-	if socks.Auth == nil {
-		socks.Auth = &NoAuth
-	}
-
 	verMsg := make([]byte, 2)
 
 	_, err := io.ReadFull(socks, verMsg)
@@ -65,7 +63,7 @@ func (socks *Socks) init() error {
 
 	if verMsg[0] != 5 {
 		socks.Close()
-		return VersionErr
+		return VersionErr{int(verMsg[0])}
 	}
 
 	methods := make([]byte, verMsg[1])
@@ -110,7 +108,7 @@ func (socks *Socks) init() error {
 
 	if request[0] != 5 {
 		socks.Close()
-		return VersionErr
+		return VersionErr{int(request[0])}
 	}
 
 	if request[1] != 1 {
@@ -131,11 +129,9 @@ func (socks *Socks) init() error {
 		_, err = socks.Write(reply)
 		if err != nil {
 			socks.Close()
-			log.Println(err)
 			return err
 		}
 		socks.Close()
-		log.Println("cmd not support")
 		return errors.New("cmd not support")
 	}
 
@@ -169,7 +165,6 @@ func (socks *Socks) init() error {
 		_, err := socks.Read(addrLength)
 		if err != nil {
 			socks.Close()
-			log.Println(err)
 			return err
 		}
 
@@ -201,11 +196,9 @@ func (socks *Socks) init() error {
 		_, err = socks.Write(reply)
 		if err != nil {
 			socks.Close()
-			log.Println(err)
 			return err
 		}
 		socks.Close()
-		log.Println("addr type not support")
 		return errors.New("addr type not support")
 	}
 }
@@ -213,7 +206,6 @@ func (socks *Socks) init() error {
 func (socks *Socks) Reply(ip net.IP, port uint16, field uint8) error {
 	if field > 8 {
 		err := fmt.Errorf("not support reply filed %d", field)
-		log.Println(err)
 		return err
 	}
 
@@ -230,10 +222,6 @@ func (socks *Socks) Reply(ip net.IP, port uint16, field uint8) error {
 	reply = append(reply, pb...)
 
 	_, err := socks.Write(reply)
-
-	if err != nil {
-		log.Println(err)
-	}
 
 	return err
 }
