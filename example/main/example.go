@@ -6,10 +6,11 @@ import (
 	"net"
 
 	"github.com/Sherlock-Holo/libsocks"
+	"github.com/pkg/errors"
 )
 
 func main() {
-	listener, err := net.Listen("tcp", "127.0.0.1:9876")
+	listener, err := net.Listen("tcp", "127.0.0.1:9875")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,9 +33,8 @@ func Handle(conn net.Conn) {
 
 	remote, err := net.Dial("tcp", socks.Target.String())
 	if err != nil {
-		log.Println(err)
+		log.Printf("%+v", errors.WithStack(err))
 		socks.Reply(net.IP{127, 0, 0, 1}, 0, libsocks.ConnRefused)
-
 		socks.Close()
 		return
 	}
@@ -42,7 +42,7 @@ func Handle(conn net.Conn) {
 	tcpAddr := remote.(*net.TCPConn).LocalAddr().(*net.TCPAddr)
 	err = socks.Reply(tcpAddr.IP, uint16(tcpAddr.Port), libsocks.Success)
 	if err != nil {
-		log.Println(err)
+		log.Printf("%+v", errors.WithStack(err))
 		socks.Close()
 		remote.Close()
 		return
@@ -50,27 +50,17 @@ func Handle(conn net.Conn) {
 
 	go func() {
 		if _, err := io.Copy(remote, socks); err != nil {
-			remote.Close()
-			socks.Close()
-			return
+			log.Printf("%+v", errors.WithStack(err))
 		}
-		if err := remote.(*net.TCPConn).CloseWrite(); err != nil {
-			remote.Close()
-			socks.Close()
-			return
-		}
+		remote.Close()
+		socks.Close()
 	}()
 
 	go func() {
 		if _, err := io.Copy(socks, remote); err != nil {
-			remote.Close()
-			socks.Close()
-			return
+			log.Printf("%+v", errors.WithStack(err))
 		}
-		if err := socks.CloseWrite(); err != nil {
-			remote.Close()
-			socks.Close()
-			return
-		}
+		remote.Close()
+		socks.Close()
 	}()
 }
