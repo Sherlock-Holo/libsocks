@@ -30,7 +30,7 @@ type VersionErr struct {
 }
 
 func (e VersionErr) Error() string {
-	return fmt.Sprintf("socks version %d not support", e.SocksVersion)
+	return fmt.Sprintf("source: %s socks version %d not support", e.SourceAddr, e.SocksVersion)
 }
 
 type Socks struct {
