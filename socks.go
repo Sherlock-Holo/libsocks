@@ -26,7 +26,7 @@ const Version = 5
 
 type VersionErr struct {
 	SourceAddr   net.Addr
-	SocksVersion int
+	SocksVersion uint8
 }
 
 func (e VersionErr) Error() string {
@@ -53,7 +53,7 @@ func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
 
 	err := socks.init()
 	if err != nil {
-		return Socks{}, err
+		return Socks{}, errors.Wrap(err, "new socks failed")
 	}
 	return socks, nil
 }
@@ -74,7 +74,7 @@ func (socks *Socks) init() error {
 	}
 
 	if verMsg[0] != Version {
-		return errors.WithStack(VersionErr{socks.LocalAddr(), int(verMsg[0])})
+		return errors.WithStack(VersionErr{socks.LocalAddr(), verMsg[0]})
 	}
 
 	methods := make([]byte, verMsg[1])
@@ -110,10 +110,10 @@ func (socks *Socks) init() error {
 	}
 
 	if request[0] != Version {
-		return errors.WithStack(VersionErr{socks.LocalAddr(), int(request[0])})
+		return errors.WithStack(VersionErr{socks.LocalAddr(), request[0]})
 	}
 
-	if request[1] != 1 {
+	if request[1] != cmdConnect {
 		reply := []byte{Version, CmdNotSupport, 0}
 		tcpAddr := socks.LocalAddr().(*net.TCPAddr)
 

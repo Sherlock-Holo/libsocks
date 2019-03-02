@@ -13,7 +13,7 @@ type Auth struct {
 
 var (
 	NoAuth = Auth{0, func(conn net.Conn) (bool, error) {
-		_, err := conn.Write([]byte{5, 0})
+		_, err := conn.Write([]byte{Version, 0})
 		if err != nil {
 			return false, errors.WithStack(err)
 		}
