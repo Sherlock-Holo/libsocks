@@ -53,19 +53,13 @@ func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
 
 	err := socks.init()
 	if err != nil {
+		socks.Close()
 		return Socks{}, errors.Wrap(err, "new socks failed")
 	}
 	return socks, nil
 }
 
 func (socks *Socks) init() error {
-	var initSuccess bool
-	defer func() {
-		if !initSuccess {
-			socks.Close()
-		}
-	}()
-
 	verMsg := make([]byte, 2)
 
 	_, err := io.ReadFull(socks, verMsg)
@@ -74,7 +68,7 @@ func (socks *Socks) init() error {
 	}
 
 	if verMsg[0] != Version {
-		return errors.WithStack(VersionErr{socks.LocalAddr(), verMsg[0]})
+		return errors.WithStack(VersionErr{socks.RemoteAddr(), verMsg[0]})
 	}
 
 	methods := make([]byte, verMsg[1])
@@ -147,9 +141,6 @@ func (socks *Socks) init() error {
 		socks.Target.IP = net.IP(addr[:net.IPv4len])
 		socks.Target.Port = binary.BigEndian.Uint16(addr[net.IPv4len:])
 
-		initSuccess = true
-		return nil
-
 	case IPv6:
 		addr := make([]byte, net.IPv6len+2)
 
@@ -159,9 +150,6 @@ func (socks *Socks) init() error {
 
 		socks.Target.IP = net.IP(addr[:net.IPv6len])
 		socks.Target.Port = binary.BigEndian.Uint16(addr[net.IPv6len:])
-
-		initSuccess = true
-		return nil
 
 	case Domain:
 		addrLength := make([]byte, 1)
@@ -179,9 +167,6 @@ func (socks *Socks) init() error {
 
 		socks.Target.Host = string(addr[:addrLength[0]])
 		socks.Target.Port = binary.BigEndian.Uint16(addr[addrLength[0]:])
-
-		initSuccess = true
-		return nil
 
 	default:
 		reply := []byte{Version, AddrTypeNotSupport, 0}
@@ -204,6 +189,8 @@ func (socks *Socks) init() error {
 		}
 		return errors.New("addr type not support")
 	}
+
+	return nil
 }
 
 func (socks *Socks) Reply(ip net.IP, port uint16, field ResponseType) error {
