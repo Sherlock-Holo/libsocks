@@ -40,6 +40,7 @@ type Socks struct {
 	Target Address
 }
 
+// NewSocks NewSocks will auth socks client and read socks request, if error, conn will be closed
 func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
 	if auth == nil {
 		auth = &NoAuth
