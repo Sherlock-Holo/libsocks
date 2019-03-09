@@ -77,7 +77,7 @@ func (socks *Socks) init() error {
 		}
 	}
 	if !coincide {
-		return xerrors.Errorf("auth %d not coincide: %w", socks.Code, err)
+		return xerrors.Errorf("socks auth %d not coincide: %w", socks.Code, err)
 	}
 
 	ok, err := socks.AuthFunc(socks)
@@ -117,7 +117,7 @@ func (socks *Socks) init() error {
 		if err != nil {
 			return xerrors.Errorf("socks write cmd not support response failed: %w", err)
 		}
-		return xerrors.New("cmd not support")
+		return xerrors.New("socks cmd not support")
 	}
 
 	socks.Target.Type = request[3]
@@ -151,7 +151,7 @@ func (socks *Socks) init() error {
 		addr := make([]byte, addrLength[0]+2)
 
 		if _, err := io.ReadFull(socks, addr); err != nil {
-			return xerrors.Errorf("socks read domain addr failed: %w", err)
+			return xerrors.Errorf("socks read domain name failed: %w", err)
 		}
 
 		socks.Target.Host = string(addr[:addrLength[0]])
@@ -176,7 +176,7 @@ func (socks *Socks) init() error {
 		if err != nil {
 			return xerrors.Errorf("socks write addr type not support response failed: %w", err)
 		}
-		return xerrors.New("addr type not support")
+		return xerrors.New("socks addr type not support")
 	}
 
 	return nil

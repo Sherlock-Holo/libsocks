@@ -30,19 +30,19 @@ func TestDecodeFrom(t *testing.T) {
 	reader3 := bytes.NewReader(address3.Bytes())
 	reader4 := bytes.NewReader(address4.Bytes())
 
-	r1, err := DecodeFrom(reader1)
+	r1, err := UnmarshalAddressFrom(reader1)
 	if err != nil {
 		t.Error(err)
 	}
 	fmt.Println(r1)
 
-	r3, err := DecodeFrom(reader3)
+	r3, err := UnmarshalAddressFrom(reader3)
 	if err != nil {
 		t.Error(err)
 	}
 	fmt.Println(r3)
 
-	r4, err := DecodeFrom(reader4)
+	r4, err := UnmarshalAddressFrom(reader4)
 	if err != nil {
 		t.Error(err)
 	}
