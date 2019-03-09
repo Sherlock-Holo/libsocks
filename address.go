@@ -7,7 +7,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 type AddressType = uint8
@@ -48,11 +48,11 @@ func (address Address) Bytes() []byte {
 
 func Decode(b []byte) (Address, error) {
 	if b == nil {
-		return Address{}, errors.New("empty []byte")
+		return Address{}, xerrors.New("empty []byte")
 	}
 
 	if len(b) <= 1+1+2 {
-		return Address{}, errors.New("not enough bytes")
+		return Address{}, xerrors.New("not enough bytes")
 	}
 
 	var address Address
@@ -61,7 +61,7 @@ func Decode(b []byte) (Address, error) {
 	switch address.Type {
 	case IPv4:
 		if len(b) < 1+net.IPv4len+2 {
-			return Address{}, errors.New("not enough bytes")
+			return Address{}, xerrors.New("not enough bytes")
 		}
 
 		address.IP = b[1 : 1+net.IPv4len]
@@ -69,7 +69,7 @@ func Decode(b []byte) (Address, error) {
 
 	case IPv6:
 		if len(b) < 1+net.IPv6len+2 {
-			return Address{}, errors.New("not enough bytes")
+			return Address{}, xerrors.New("not enough bytes")
 		}
 
 		address.IP = b[1 : 1+net.IPv6len]
@@ -78,13 +78,13 @@ func Decode(b []byte) (Address, error) {
 	case Domain:
 		length := int(b[1])
 		if len(b) < 2+length+2 {
-			return Address{}, errors.New("not enough bytes")
+			return Address{}, xerrors.New("not enough bytes")
 		}
 		address.Host = string(b[2 : 2+length])
 		b = b[2+length:]
 
 	default:
-		return Address{}, errors.New("address type not support")
+		return Address{}, xerrors.New("address type not support")
 	}
 
 	address.Port = binary.BigEndian.Uint16(b)
@@ -95,7 +95,7 @@ func Decode(b []byte) (Address, error) {
 func DecodeFrom(r io.Reader) (Address, error) {
 	addrType := make([]byte, 1)
 	if _, err := r.Read(addrType); err != nil {
-		return Address{}, errors.Wrap(err, "decode socks address from io.Reader failed")
+		return Address{}, xerrors.Errorf("decode socks address from io.Reader failed: %w", err)
 	}
 
 	var b []byte
@@ -103,31 +103,32 @@ func DecodeFrom(r io.Reader) (Address, error) {
 	case IPv4:
 		b = make([]byte, net.IPv4len+2)
 		if _, err := io.ReadFull(r, b); err != nil {
-			return Address{}, errors.Wrap(err, "read ipv4 addr from io.Reader failed")
+			return Address{}, xerrors.Errorf("read ipv4 addr from io.Reader failed: %w", err)
 		}
 		b = append(addrType, b...)
 
 	case IPv6:
 		b = make([]byte, net.IPv6len+2)
 		if _, err := io.ReadFull(r, b); err != nil {
-			return Address{}, errors.Wrap(err, "read ipv6 addr from io.Reader failed")
+			return Address{}, xerrors.Errorf("read ipv6 addr from io.Reader failed: %w", err)
 		}
 		b = append(addrType, b...)
 
 	case Domain:
 		addrLen := make([]byte, 1)
 		if _, err := r.Read(addrLen); err != nil {
-			return Address{}, errors.Wrap(err, "read domain length from io.Reader failed")
+			return Address{}, xerrors.Errorf("read domain length from io.Reader failed: %w", err)
 		}
+
 		b = make([]byte, addrLen[0]+2)
 		if _, err := io.ReadFull(r, b); err != nil {
-			return Address{}, errors.Wrap(err, "read domain addr from io.Reader failed")
+			return Address{}, xerrors.Errorf("read domain addr from io.Reader failed: %w", err)
 		}
 		b = append(addrLen, b...)
 		b = append(addrType, b...)
 
 	default:
-		return Address{}, errors.Errorf("not support addr type %d", addrType[0])
+		return Address{}, xerrors.Errorf("not support addr type %d", addrType[0])
 	}
 
 	return Decode(b)

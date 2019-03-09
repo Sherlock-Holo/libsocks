@@ -2,11 +2,10 @@ package libsocks
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"net"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 type ResponseType = uint8
@@ -23,15 +22,6 @@ const (
 )
 
 const Version = 5
-
-type VersionErr struct {
-	SourceAddr   net.Addr
-	SocksVersion uint8
-}
-
-func (e VersionErr) Error() string {
-	return fmt.Sprintf("source: %s socks version %d not support", e.SourceAddr, e.SocksVersion)
-}
 
 type Socks struct {
 	net.Conn
@@ -55,7 +45,7 @@ func NewSocks(conn net.Conn, auth *Auth) (Socks, error) {
 	err := socks.init()
 	if err != nil {
 		socks.Close()
-		return Socks{}, errors.Wrap(err, "new socks failed")
+		return Socks{}, xerrors.Errorf("new socks failed: %w", err)
 	}
 	return socks, nil
 }
@@ -65,18 +55,18 @@ func (socks *Socks) init() error {
 
 	_, err := io.ReadFull(socks, verMsg)
 	if err != nil {
-		return errors.Wrap(err, "socks read version failed")
+		return xerrors.Errorf("socks read version failed: %w", err)
 	}
 
 	if verMsg[0] != Version {
-		return errors.WithStack(VersionErr{socks.RemoteAddr(), verMsg[0]})
+		return xerrors.Errorf("socks auth version wrong: %w", VersionErr{socks.RemoteAddr(), verMsg[0]})
 	}
 
 	methods := make([]byte, verMsg[1])
 
 	_, err = io.ReadFull(socks, methods)
 	if err != nil {
-		return errors.Wrap(err, "socks read auth methods failed")
+		return xerrors.Errorf("socks read auth methods failed: %w", err)
 	}
 
 	var coincide bool
@@ -87,25 +77,25 @@ func (socks *Socks) init() error {
 		}
 	}
 	if !coincide {
-		return errors.Errorf("auth %d not coincide", socks.Code)
+		return xerrors.Errorf("auth %d not coincide: %w", socks.Code, err)
 	}
 
 	ok, err := socks.AuthFunc(socks)
 	if err != nil {
-		return errors.Wrap(err, "socks auth failed")
+		return xerrors.Errorf("socks auth failed: %w", err)
 	}
 
 	if !ok {
-		return errors.New("socks auth failed")
+		return xerrors.New("socks auth failed")
 	}
 
 	request := make([]byte, 4)
 	if _, err := io.ReadFull(socks, request); err != nil {
-		return errors.Wrap(err, "socks read request failed")
+		return xerrors.Errorf("socks read request failed: %w", err)
 	}
 
 	if request[0] != Version {
-		return errors.WithStack(VersionErr{socks.LocalAddr(), request[0]})
+		return xerrors.Errorf("socks request version wrong: %w", VersionErr{socks.LocalAddr(), request[0]})
 	}
 
 	if request[1] != cmdConnect {
@@ -125,9 +115,9 @@ func (socks *Socks) init() error {
 
 		_, err = socks.Write(reply)
 		if err != nil {
-			return errors.Wrap(err, "socks write cmd not support response failed")
+			return xerrors.Errorf("socks write cmd not support response failed: %w", err)
 		}
-		return errors.New("cmd not support")
+		return xerrors.New("cmd not support")
 	}
 
 	socks.Target.Type = request[3]
@@ -136,7 +126,7 @@ func (socks *Socks) init() error {
 		addr := make([]byte, net.IPv4len+2)
 
 		if _, err := io.ReadFull(socks, addr); err != nil {
-			return errors.Wrap(err, "socks read ipv4 addr failed")
+			return xerrors.Errorf("socks read ipv4 addr failed: %w", err)
 		}
 
 		socks.Target.IP = net.IP(addr[:net.IPv4len])
@@ -146,7 +136,7 @@ func (socks *Socks) init() error {
 		addr := make([]byte, net.IPv6len+2)
 
 		if _, err := io.ReadFull(socks, addr); err != nil {
-			return errors.Wrap(err, "socks read ipv6 addr failed")
+			return xerrors.Errorf("socks read ipv6 addr failed: %w", err)
 		}
 
 		socks.Target.IP = net.IP(addr[:net.IPv6len])
@@ -154,16 +144,14 @@ func (socks *Socks) init() error {
 
 	case Domain:
 		addrLength := make([]byte, 1)
-		_, err := socks.Read(addrLength)
-		if err != nil {
-			socks.Close()
-			return err
+		if _, err := socks.Read(addrLength); err != nil {
+			return xerrors.Errorf("socks read domain name length failed: %w", err)
 		}
 
 		addr := make([]byte, addrLength[0]+2)
 
 		if _, err := io.ReadFull(socks, addr); err != nil {
-			return errors.Wrap(err, "socks read domain addr failed")
+			return xerrors.Errorf("socks read domain addr failed: %w", err)
 		}
 
 		socks.Target.Host = string(addr[:addrLength[0]])
@@ -186,9 +174,9 @@ func (socks *Socks) init() error {
 
 		_, err = socks.Write(reply)
 		if err != nil {
-			return errors.Wrap(err, "socks write addr type not support response failed")
+			return xerrors.Errorf("socks write addr type not support response failed: %w", err)
 		}
-		return errors.New("addr type not support")
+		return xerrors.New("addr type not support")
 	}
 
 	return nil
@@ -197,7 +185,7 @@ func (socks *Socks) init() error {
 func (socks *Socks) Reply(ip net.IP, port uint16, field ResponseType) error {
 	switch field {
 	default:
-		return errors.Errorf("not support reply filed %d", field)
+		return xerrors.Errorf("not support reply filed %d", field)
 
 	case Success, ServerFailed, ConnNotAllowed, NetworkUnreachable, ConnRefused, TTLExpired, CmdNotSupport, AddrTypeNotSupport:
 	}
@@ -215,5 +203,5 @@ func (socks *Socks) Reply(ip net.IP, port uint16, field ResponseType) error {
 	reply = append(reply, pb...)
 
 	_, err := socks.Write(reply)
-	return errors.Wrap(err, "socks write reply failed")
+	return xerrors.Errorf("socks write reply failed: %w", err)
 }

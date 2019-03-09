@@ -3,7 +3,7 @@ package libsocks
 import (
 	"net"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 type Auth struct {
@@ -15,7 +15,7 @@ var (
 	NoAuth = Auth{0, func(conn net.Conn) (bool, error) {
 		_, err := conn.Write([]byte{Version, 0})
 		if err != nil {
-			return false, errors.WithStack(err)
+			return false, xerrors.Errorf("no-password auth failed: %w", err)
 		}
 
 		return true, nil
