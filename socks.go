@@ -202,6 +202,9 @@ func (socks *Socks) Reply(ip net.IP, port uint16, field ResponseType) error {
 	reply = append(reply, ip...)
 	reply = append(reply, pb...)
 
-	_, err := socks.Write(reply)
-	return xerrors.Errorf("socks write reply failed: %w", err)
+	if _, err := socks.Write(reply); err != nil {
+		return xerrors.Errorf("socks write reply failed: %w", err)
+	}
+
+	return nil
 }
