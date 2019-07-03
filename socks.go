@@ -198,10 +198,11 @@ func (server *SocksServer) Reply(ip net.IP, port uint16, field ResponseType) err
 	reply := []byte{Version, field, 0}
 	if ipv4 := ip.To4(); ipv4 != nil {
 		reply = append(reply, TypeIPv4)
+		reply = append(reply, ipv4...)
 	} else {
 		reply = append(reply, TypeIPv6)
+		reply = append(reply, ip...)
 	}
-	reply = append(reply, ip...)
 
 	pb := make([]byte, 2)
 	binary.BigEndian.PutUint16(pb, port)
