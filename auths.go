@@ -6,18 +6,22 @@ import (
 	"golang.org/x/xerrors"
 )
 
-type Auth struct {
-	Code     uint8
-	AuthFunc func(conn net.Conn) (bool, error)
+type Authentication interface {
+	AuthFunc(conn net.Conn) (bool, error)
+	Code() uint8
 }
 
-var (
-	NoAuth = Auth{0, func(conn net.Conn) (bool, error) {
-		_, err := conn.Write([]byte{Version, 0})
-		if err != nil {
-			return false, xerrors.Errorf("no-password auth failed: %w", err)
-		}
+type NoAuth struct{}
 
-		return true, nil
-	}}
-)
+func (na NoAuth) Code() uint8 {
+	return 0
+}
+
+func (na NoAuth) AuthFunc(conn net.Conn) (bool, error) {
+	_, err := conn.Write([]byte{Version, 0})
+	if err != nil {
+		return false, xerrors.Errorf("no-password auth failed: %w", err)
+	}
+
+	return true, nil
+}
