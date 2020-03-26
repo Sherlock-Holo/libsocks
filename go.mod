@@ -1,3 +1,5 @@
 module github.com/Sherlock-Holo/libsocks
 
-require golang.org/x/xerrors v0.0.0-20190212162355-a5947ffaace3
+go 1.14
+
+require golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
